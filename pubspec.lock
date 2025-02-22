@@ -175,10 +175,10 @@ packages:
     dependency: "direct main"
     description:
       name: numd
-      sha256: "592a5b14531b82456958a4f6191a5a986a93b6962c10969be454fbfd15db6829"
+      sha256: "64993f9e26cbe17afb529f69f20253be2f28c431673c3679354f0c8703221748"
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.2"
+    version: "1.0.4"
   path:
     dependency: transitive
     description:

@@ -24,7 +24,7 @@ class AppTheme {
             fontWeight: FontWeight.bold,
             color: AppColors.background),
         displayMedium: GoogleFonts.plusJakartaSans(
-          fontSize: 24,
+          fontSize: 20,
           fontWeight: FontWeight.bold,
         ),
         displaySmall: GoogleFonts.plusJakartaSans(

@@ -48,7 +48,7 @@ class Unit extends StatelessWidget {
             border: Border.all(color: AppColors.primary, width: 6),
           ),
           child: Text(
-            value.toString(),
+            value.toStringAsFixed(1),
             style: Theme.of(context).textTheme.displayMedium?.copyWith(
                   color: AppColors.background,
                 ),
