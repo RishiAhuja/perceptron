@@ -3,6 +3,7 @@ import 'package:numd/numd.dart';
 import 'package:perceptron/core/configs/constants/app_constants.dart';
 import 'package:perceptron/core/configs/theme/app_colors.dart';
 import 'package:perceptron/core/widget/arrow_painter.dart';
+import 'package:perceptron/data/training/shape_gen.dart';
 import 'package:perceptron/data/training/training_data.dart';
 import 'package:perceptron/data/training/training_pattern.dart';
 import 'package:perceptron/presentation/home/widget/unit.dart';
@@ -81,7 +82,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    generateTrainingVariations();
+    // generateTrainingVariations();
+    trainingData.addAll(ShapeGenerator.generateTrainingSet());
     for (int i = 0; i < sensory.rows; i++) {
       for (int j = 0; j < sensory.cols; j++) {
         sensoryKeys['$i-$j'] = GlobalKey();
@@ -342,7 +344,6 @@ class _HomeScreenState extends State<HomeScreen> {
       total++;
       forwardPass(pattern.input);
 
-      // Check if prediction is correct using threshold
       bool isCorrect = true;
       for (int i = 0; i < response.rows; i++) {
         double predicted = response[i][0] > 0.5 ? 1.0 : 0.0;
@@ -359,16 +360,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (isCorrect) correct++;
 
-      print('Training pattern: ${pattern.label}');
-      print('Expected: ${pattern.expectedOutput}');
-      print('Actual (raw): $response');
+      // print('Training pattern: ${pattern.label}');
+      // print('Expected: ${pattern.expectedOutput}');
+      // print('Actual (raw): $response');
       List<double> thresholdedResponse = [];
       for (int i = 0; i < response.rows; i++) {
         thresholdedResponse.add(response[i][0] > 0.5 ? 1.0 : 0.0);
       }
-      print('Actual (thresholded): $thresholdedResponse');
+      // print('Actual (thresholded): $thresholdedResponse');
 
       adjustWeights(pattern);
+      print('Epoch accuracy: ${(correct / total * 100).toStringAsFixed(2)}%');
     }
 
     print('Epoch accuracy: ${(correct / total * 100).toStringAsFixed(2)}%');
@@ -377,11 +379,11 @@ class _HomeScreenState extends State<HomeScreen> {
   void adjustWeights(TrainingPattern pattern) {
     forwardPass(pattern.input);
     print("\n== Adjusting Weights ==");
-    print("Pattern: ${pattern.label}");
+    // print("Pattern: ${pattern.label}");
     for (int i = 0; i < response.rows; i++) {
       double actual = response[i][0];
       double expected = pattern.expectedOutput[i][0];
-      double error = expected - actual; // Calculate error
+      double error = expected - actual;
 
       final incomingConns = getIncomingConnectionsL2('$i-0');
 
@@ -394,7 +396,6 @@ class _HomeScreenState extends State<HomeScreen> {
             (c) => c.sourceId == conn.sourceId && c.targetId == conn.targetId);
 
         if (connectionIndex != -1) {
-          // Use error directly in weight update
           double newWeight = responseConnections[connectionIndex].weight +
               (learningRate * error * associationActivity);
 
@@ -488,8 +489,8 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.play_arrow),
             onPressed: () {
-              for (int i = 0; i < 20; i++) {
-                print('Epoch ${i + 1}');
+              for (int i = 0; i < 5; i++) {
+                // print('Epoch ${i + 1}');
                 trainOneEpoch();
               }
             },
