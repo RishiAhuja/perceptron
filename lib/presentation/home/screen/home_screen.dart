@@ -9,6 +9,7 @@ import 'package:perceptron/data/training/training_pattern.dart';
 import 'package:perceptron/presentation/home/widget/unit.dart';
 import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
+import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -93,6 +94,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<FlSpot> accuracyPoints = [];
   int dataPoint = 0;
+
+  String trainingProgress = '0%';
+  String elapsedTime = '0:00';
+  DateTime? trainingStartTime;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -599,11 +605,29 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> trainNetwork(int epochs) async {
-    for (int epoch = 0; epoch < epochs; epoch++) {
-      currentStatus = 'Training epoch ${epoch + 1}/$epochs';
-      await trainOneEpoch();
-      // Allow UI to update between epochs
-      await Future.delayed(const Duration(milliseconds: 10));
+    trainingStartTime = DateTime.now();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (trainingStartTime != null) {
+        final duration = DateTime.now().difference(trainingStartTime!);
+        setState(() {
+          elapsedTime =
+              '${duration.inMinutes}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
+        });
+      }
+    });
+
+    try {
+      for (int epoch = 0; epoch < epochs; epoch++) {
+        setState(() {
+          trainingProgress =
+              '${((epoch + 1) / epochs * 100).toStringAsFixed(1)}%';
+          currentStatus = 'Training epoch ${epoch + 1}/$epochs';
+        });
+        await trainOneEpoch();
+        await Future.delayed(const Duration(milliseconds: 10));
+      }
+    } finally {
+      _timer?.cancel();
     }
   }
 
@@ -695,6 +719,33 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SingleChildScrollView(
         child: Stack(
           children: [
+            // Progress indicators
+            Positioned(
+              left: 16,
+              top: 16,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Progress: $trainingProgress',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Time: $elapsedTime',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             if (associationConnections.isNotEmpty)
               Positioned.fill(
                 child: CustomPaint(
