@@ -80,9 +80,10 @@ class ShapeGenerator {
   ];
 
   static List<TrainingPattern> generateTrainingSet(
-      {int variationsPerPattern = 50}) {
+      {int variationsPerPattern = 1000}) {
     final patterns = <TrainingPattern>[];
 
+    // Generate variations for each base pattern
     for (var squarePattern in squarePatterns) {
       for (int i = 0; i < variationsPerPattern; i++) {
         patterns.add(_generateVariation(squarePattern, 'Square', [
@@ -112,7 +113,7 @@ class ShapeGenerator {
         ]));
       }
     }
-
+    patterns.shuffle();
     return patterns;
   }
 
@@ -128,17 +129,6 @@ class ShapeGenerator {
 
     if (_random.nextBool()) {
       matrix = _flipVertical(matrix);
-    }
-
-    // Add slight noise (but preserve shape structure)
-    final noiseCount = _random.nextInt(2); // 0 or 1 noise pixels
-    for (int i = 0; i < noiseCount; i++) {
-      final row = _random.nextInt(MATRIX_SIZE);
-      final col = _random.nextInt(MATRIX_SIZE);
-      // Only add noise to empty spaces to preserve shape
-      if (matrix[row][col] == 0) {
-        matrix[row][col] = _random.nextDouble() < 0.3 ? 1 : 0;
-      }
     }
 
     return TrainingPattern(

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:numd/numd.dart';
-import 'package:perceptron/core/configs/constants/app_constants.dart';
+// import 'package:perceptron/core/configs/constants/app_constants.dart';
 import 'package:perceptron/core/configs/theme/app_colors.dart';
 import 'package:perceptron/core/widget/arrow_painter.dart';
 import 'package:perceptron/data/training/shape_gen.dart';
@@ -8,6 +8,7 @@ import 'package:perceptron/data/training/training_data.dart';
 import 'package:perceptron/data/training/training_pattern.dart';
 import 'package:perceptron/presentation/home/widget/unit.dart';
 import 'dart:math' as math;
+import 'package:fl_chart/fl_chart.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,9 +24,16 @@ class _HomeScreenState extends State<HomeScreen> {
   final Map<String, GlobalKey> associationKeys = {};
   final Map<String, GlobalKey> responseKeys = {};
   bool isGeneratingConnections = false;
-  final double learningRate = 1;
+  // final double learningRate = 1;
   int epoch = 0;
   int currentEpochVariation = 0;
+
+  static const int ASSOCIATION_UNITS = 20;
+
+  final double learningRate = 1;
+
+  var association =
+      NDArray<double>.init(List.generate(ASSOCIATION_UNITS, (i) => [0.0]));
 
   var sensory = NDArray<double>.init([
     [
@@ -65,19 +73,26 @@ class _HomeScreenState extends State<HomeScreen> {
     ],
   ]);
 
-  var association = NDArray<double>.init([
-    [0.0],
-    [0.0],
-    [0.0],
-    [0.0],
-    [0.0],
-  ]);
+  // var association = NDArray<double>.init([
+  //   [0.0],
+  //   [0.0],
+  //   [0.0],
+  //   [0.0],
+  //   [0.0],
+  // ]);
 
   var response = NDArray<double>.init([
     [0.0],
     [1.0],
     [0.0],
   ]);
+
+  bool isTraining = false;
+  String currentStatus = '';
+  double currentAccuracy = 0.0;
+
+  final List<FlSpot> accuracyPoints = [];
+  int dataPoint = 0;
 
   @override
   void initState() {
@@ -124,7 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Offset(
       position.dx + size.width / 2,
-      position.dy + size.height / 25 - scaffoldPosition.dy - 25,
+      position.dy + size.height / 40 - scaffoldPosition.dy - 40,
     );
   }
 
@@ -172,50 +187,165 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  // void generateAssociationConnections() {
+  //   final random = math.Random();
+
+  //   for (int i = 0; i < sensory.rows; i++) {
+  //     for (int j = 0; j < sensory.cols; j++) {
+  //       final targetRow = random.nextInt(association.rows);
+  //       final sourceKey = sensoryKeys['$i-$j'];
+  //       final associationTargetKey = associationKeys['$targetRow-0'];
+  //       // final responseTargetKey = responseKeys['$targetRow-0'];
+
+  //       if (sourceKey != null && associationTargetKey != null) {
+  //         final sourceCenter = getWidgetCenter(sourceKey);
+  //         final associationTargetCenter = getWidgetCenter(associationTargetKey);
+  //         final weight = random.nextInt(2);
+  //         if (sourceCenter != Offset.zero &&
+  //             associationTargetCenter != Offset.zero) {
+  //           associationConnections.add(Connection(
+  //               sourceId: '$i-$j',
+  //               targetId: '$targetRow-0',
+  //               source: sourceCenter,
+  //               target: associationTargetCenter,
+  //               width: 1.5,
+  //               weight: -5 + random.nextDouble(),
+  //               color: weight == 1 ? AppColors.green : AppColors.red));
+  //         }
+  //       }
+
+  //       var newAssociations = List.generate(association.rows, (index) => [0.0]);
+  //       for (int i = 0; i < association.rows; i++) {
+  //         double sum = 0.0;
+  //         final incomingConns = getIncomingConnectionsL1('$i-0');
+
+  //         for (var conn in incomingConns) {
+  //           final sourceIndices = conn.sourceId.split('-');
+  //           final sourceRow = int.parse(sourceIndices[0]);
+  //           final sourceCol = int.parse(sourceIndices[1]);
+
+  //           sum += conn.weight * sensory.at(sourceRow, sourceCol);
+  //         }
+
+  //         newAssociations[i][0] = sum > AppConstants.threshold ? 1.0 : 0.0;
+  //       }
+
+  //       association = NDArray.init(newAssociations);
+  //     }
+  //   }
+  // }
+
+  // void generateResponseConnections() {
+  //   final random = math.Random();
+  //   responseConnections.clear();
+
+  //   List<int> availableAssociationUnits =
+  //       List.generate(association.rows, (i) => i);
+  //   availableAssociationUnits.shuffle(random);
+
+  //   for (int i = 0; i < response.rows; i++) {
+  //     final associationIndex = availableAssociationUnits[i];
+  //     final associationSourceKey = associationKeys['$associationIndex-0'];
+  //     final responseTargetKey = responseKeys['$i-0'];
+
+  //     if (responseTargetKey != null && associationSourceKey != null) {
+  //       final associationCenter = getWidgetCenter(associationSourceKey);
+  //       final responseCenter = getWidgetCenter(responseTargetKey);
+
+  //       if (associationCenter != Offset.zero && responseCenter != Offset.zero) {
+  //         responseConnections.add(Connection(
+  //             sourceId: '$associationIndex-0',
+  //             targetId: '$i-0',
+  //             source: associationCenter,
+  //             target: responseCenter,
+  //             width: 1.5,
+  //             weight: 0 + (random.nextDouble() * (10 - 0)),
+  //             color: Colors.white,
+  //             showWeight: true));
+  //       }
+  //     }
+  //   }
+
+  //   List<int> remainingAssociationUnits =
+  //       availableAssociationUnits.sublist(response.shape[0]);
+  //   for (final associationIndex in remainingAssociationUnits) {
+  //     final targetRow = random.nextInt(response.rows);
+  //     final associationSourceKey = associationKeys['$associationIndex-0'];
+  //     final responseTargetKey = responseKeys['$targetRow-0'];
+
+  //     if (responseTargetKey != null && associationSourceKey != null) {
+  //       final associationCenter = getWidgetCenter(associationSourceKey);
+  //       final responseCenter = getWidgetCenter(responseTargetKey);
+
+  //       if (associationCenter != Offset.zero && responseCenter != Offset.zero) {
+  //         responseConnections.add(Connection(
+  //             sourceId: '$associationIndex-0',
+  //             targetId: '$targetRow-0',
+  //             source: associationCenter,
+  //             target: responseCenter,
+  //             width: 1.5,
+  //             weight: 0 + (random.nextDouble() * (10 - 0)),
+  //             color: Colors.white,
+  //             showWeight: true));
+  //       }
+  //     }
+  //   }
+
+  //   var newResponse = List.generate(response.rows, (index) => [0.0]);
+  //   for (int i = 0; i < response.rows; i++) {
+  //     double sum = 0.0;
+  //     final incomingConns = getIncomingConnectionsL1('$i-0');
+
+  //     for (var conn in incomingConns) {
+  //       final sourceIndices = conn.sourceId.split('-');
+  //       final sourceRow = int.parse(sourceIndices[0]);
+
+  //       sum += conn.weight * association.at(sourceRow, 0);
+  //     }
+
+  //     newResponse[i][0] = sum > 0 ? 1.0 : 0.0;
+  //   }
+
+  //   response = NDArray.init(newResponse);
+  // }
+
   void generateAssociationConnections() {
     final random = math.Random();
+    associationConnections.clear();
 
     for (int i = 0; i < sensory.rows; i++) {
       for (int j = 0; j < sensory.cols; j++) {
-        final targetRow = random.nextInt(association.rows);
-        final sourceKey = sensoryKeys['$i-$j'];
-        final associationTargetKey = associationKeys['$targetRow-0'];
-        // final responseTargetKey = responseKeys['$targetRow-0'];
+        // Each sensory unit connects to about 25% of association units randomly
+        int numConnections = (ASSOCIATION_UNITS * 0.25).round();
+        List<int> targetUnits = List.generate(ASSOCIATION_UNITS, (i) => i);
+        targetUnits.shuffle(random);
+        targetUnits = targetUnits.sublist(0, numConnections);
 
-        if (sourceKey != null && associationTargetKey != null) {
-          final sourceCenter = getWidgetCenter(sourceKey);
-          final associationTargetCenter = getWidgetCenter(associationTargetKey);
-          final weight = random.nextInt(2);
-          if (sourceCenter != Offset.zero &&
-              associationTargetCenter != Offset.zero) {
-            associationConnections.add(Connection(
-                sourceId: '$i-$j',
-                targetId: '$targetRow-0',
-                source: sourceCenter,
-                target: associationTargetCenter,
-                width: 1.5,
-                weight: -5 + random.nextDouble(),
-                color: weight == 1 ? AppColors.green : AppColors.red));
+        for (int targetUnit in targetUnits) {
+          final sourceKey = sensoryKeys['$i-$j'];
+          final associationTargetKey = associationKeys['$targetUnit-0'];
+
+          if (sourceKey != null && associationTargetKey != null) {
+            final sourceCenter = getWidgetCenter(sourceKey);
+            final associationTargetCenter =
+                getWidgetCenter(associationTargetKey);
+
+            // Better weight initialization: small random values
+            final weight = -0.5 + random.nextDouble(); // Range: -0.5 to 0.5
+
+            if (sourceCenter != Offset.zero &&
+                associationTargetCenter != Offset.zero) {
+              associationConnections.add(Connection(
+                  sourceId: '$i-$j',
+                  targetId: '$targetUnit-0',
+                  source: sourceCenter,
+                  target: associationTargetCenter,
+                  width: 1.5,
+                  weight: weight,
+                  color: weight > 0 ? AppColors.green : AppColors.red));
+            }
           }
         }
-
-        var newAssociations = List.generate(association.rows, (index) => [0.0]);
-        for (int i = 0; i < association.rows; i++) {
-          double sum = 0.0;
-          final incomingConns = getIncomingConnectionsL1('$i-0');
-
-          for (var conn in incomingConns) {
-            final sourceIndices = conn.sourceId.split('-');
-            final sourceRow = int.parse(sourceIndices[0]);
-            final sourceCol = int.parse(sourceIndices[1]);
-
-            sum += conn.weight * sensory.at(sourceRow, sourceCol);
-          }
-
-          newAssociations[i][0] = sum > AppConstants.threshold ? 1.0 : 0.0;
-        }
-
-        association = NDArray.init(newAssociations);
       }
     }
   }
@@ -224,74 +354,33 @@ class _HomeScreenState extends State<HomeScreen> {
     final random = math.Random();
     responseConnections.clear();
 
-    List<int> availableAssociationUnits =
-        List.generate(association.rows, (i) => i);
-    availableAssociationUnits.shuffle(random);
-
+    // Each response unit connects to all association units
     for (int i = 0; i < response.rows; i++) {
-      final associationIndex = availableAssociationUnits[i];
-      final associationSourceKey = associationKeys['$associationIndex-0'];
-      final responseTargetKey = responseKeys['$i-0'];
+      for (int j = 0; j < ASSOCIATION_UNITS; j++) {
+        final sourceKey = associationKeys['$j-0'];
+        final targetKey = responseKeys['$i-0'];
 
-      if (responseTargetKey != null && associationSourceKey != null) {
-        final associationCenter = getWidgetCenter(associationSourceKey);
-        final responseCenter = getWidgetCenter(responseTargetKey);
+        if (sourceKey != null && targetKey != null) {
+          final sourceCenter = getWidgetCenter(sourceKey);
+          final targetCenter = getWidgetCenter(targetKey);
 
-        if (associationCenter != Offset.zero && responseCenter != Offset.zero) {
-          responseConnections.add(Connection(
-              sourceId: '$associationIndex-0',
-              targetId: '$i-0',
-              source: associationCenter,
-              target: responseCenter,
-              width: 1.5,
-              weight: 0 + (random.nextDouble() * (10 - 0)),
-              color: Colors.white,
-              showWeight: true));
+          if (sourceCenter != Offset.zero && targetCenter != Offset.zero) {
+            // Small random initial weights
+            final weight = -0.5 + random.nextDouble(); // Range: -0.5 to 0.5
+
+            responseConnections.add(Connection(
+                sourceId: '$j-0',
+                targetId: '$i-0',
+                source: sourceCenter,
+                target: targetCenter,
+                width: 1.5,
+                weight: weight,
+                color: Colors.white,
+                showWeight: true));
+          }
         }
       }
     }
-
-    List<int> remainingAssociationUnits =
-        availableAssociationUnits.sublist(response.shape[0]);
-    for (final associationIndex in remainingAssociationUnits) {
-      final targetRow = random.nextInt(response.rows);
-      final associationSourceKey = associationKeys['$associationIndex-0'];
-      final responseTargetKey = responseKeys['$targetRow-0'];
-
-      if (responseTargetKey != null && associationSourceKey != null) {
-        final associationCenter = getWidgetCenter(associationSourceKey);
-        final responseCenter = getWidgetCenter(responseTargetKey);
-
-        if (associationCenter != Offset.zero && responseCenter != Offset.zero) {
-          responseConnections.add(Connection(
-              sourceId: '$associationIndex-0',
-              targetId: '$targetRow-0',
-              source: associationCenter,
-              target: responseCenter,
-              width: 1.5,
-              weight: 0 + (random.nextDouble() * (10 - 0)),
-              color: Colors.white,
-              showWeight: true));
-        }
-      }
-    }
-
-    var newResponse = List.generate(response.rows, (index) => [0.0]);
-    for (int i = 0; i < response.rows; i++) {
-      double sum = 0.0;
-      final incomingConns = getIncomingConnectionsL1('$i-0');
-
-      for (var conn in incomingConns) {
-        final sourceIndices = conn.sourceId.split('-');
-        final sourceRow = int.parse(sourceIndices[0]);
-
-        sum += conn.weight * association.at(sourceRow, 0);
-      }
-
-      newResponse[i][0] = sum > 0 ? 1.0 : 0.0;
-    }
-
-    response = NDArray.init(newResponse);
   }
 
   void forwardPass(NDArray input) {
@@ -332,11 +421,10 @@ class _HomeScreenState extends State<HomeScreen> {
     print('Actual output: $response');
   }
 
-  void trainOneEpoch() {
+  Future<void> trainOneEpoch() async {
     int correct = 0;
     int total = 0;
-    print("\n=== Starting New Epoch ===");
-    print("Training data size: ${trainingData.length}");
+
     for (var pattern in trainingData) {
       setState(() {
         sensory = pattern.input;
@@ -352,41 +440,88 @@ class _HomeScreenState extends State<HomeScreen> {
         if ((predicted > 0.5 && expected < 0.5) ||
             (predicted < 0.5 && expected > 0.5)) {
           isCorrect = false;
-          print(
-              "Incorrect prediction at output $i: predicted=$predicted, expected=$expected");
           break;
         }
       }
 
       if (isCorrect) correct++;
 
-      // print('Training pattern: ${pattern.label}');
-      // print('Expected: ${pattern.expectedOutput}');
-      // print('Actual (raw): $response');
-      List<double> thresholdedResponse = [];
-      for (int i = 0; i < response.rows; i++) {
-        thresholdedResponse.add(response[i][0] > 0.5 ? 1.0 : 0.0);
-      }
-      // print('Actual (thresholded): $thresholdedResponse');
-
       adjustWeights(pattern);
-      print('Epoch accuracy: ${(correct / total * 100).toStringAsFixed(2)}%');
-    }
 
-    print('Epoch accuracy: ${(correct / total * 100).toStringAsFixed(2)}%');
+      setState(() {
+        currentAccuracy = (correct / total) * 100;
+        currentStatus = 'Accuracy: ${currentAccuracy.toStringAsFixed(2)}%';
+
+        accuracyPoints.add(FlSpot(dataPoint.toDouble(), currentAccuracy));
+        dataPoint++;
+
+        if (accuracyPoints.length > 500) {
+          accuracyPoints.removeAt(0);
+        }
+      });
+      print("Accuracy: ${currentAccuracy.toStringAsFixed(2)}%");
+
+      // Allow UI to update periodically
+      if (total % 10 == 0) {
+        await Future.delayed(const Duration(milliseconds: 5));
+      }
+    }
   }
+
+  // void adjustWeights(TrainingPattern pattern) {
+  //   forwardPass(pattern.input);
+  //   print("\n== Adjusting Weights ==");
+  //   // print("Pattern: ${pattern.label}");
+  //   for (int i = 0; i < response.rows; i++) {
+  //     double actual = response[i][0];
+  //     double expected = pattern.expectedOutput[i][0];
+  //     double error = expected - actual;
+
+  //     final incomingConns = getIncomingConnectionsL2('$i-0');
+
+  //     for (var conn in incomingConns) {
+  //       final sourceIndices = conn.sourceId.split('-');
+  //       final sourceRow = int.parse(sourceIndices[0]);
+  //       final associationActivity = association[sourceRow][0];
+
+  //       int connectionIndex = responseConnections.indexWhere(
+  //           (c) => c.sourceId == conn.sourceId && c.targetId == conn.targetId);
+
+  //       if (connectionIndex != -1) {
+  //         double newWeight = responseConnections[connectionIndex].weight +
+  //             (learningRate * error * associationActivity);
+
+  //         setState(() {
+  //           responseConnections[connectionIndex] = Connection(
+  //               sourceId: conn.sourceId,
+  //               targetId: conn.targetId,
+  //               source: conn.source,
+  //               target: conn.target,
+  //               width: conn.width,
+  //               weight: newWeight,
+  //               showWeight: true,
+  //               color: newWeight > 0
+  //                   ? AppColors.green
+  //                   : newWeight < -5
+  //                       ? AppColors.red
+  //                       : Colors.white);
+  //         });
+  //       }
+  //     }
+  //   }
+  // }
 
   void adjustWeights(TrainingPattern pattern) {
     forwardPass(pattern.input);
-    print("\n== Adjusting Weights ==");
-    // print("Pattern: ${pattern.label}");
+
+    // Adjust response layer weights
     for (int i = 0; i < response.rows; i++) {
       double actual = response[i][0];
       double expected = pattern.expectedOutput[i][0];
       double error = expected - actual;
+      double delta = error * actual * (1 - actual); // Derivative of sigmoid
 
       final incomingConns = getIncomingConnectionsL2('$i-0');
-
       for (var conn in incomingConns) {
         final sourceIndices = conn.sourceId.split('-');
         final sourceRow = int.parse(sourceIndices[0]);
@@ -396,8 +531,9 @@ class _HomeScreenState extends State<HomeScreen> {
             (c) => c.sourceId == conn.sourceId && c.targetId == conn.targetId);
 
         if (connectionIndex != -1) {
-          double newWeight = responseConnections[connectionIndex].weight +
-              (learningRate * error * associationActivity);
+          double weightUpdate = learningRate * delta * associationActivity;
+          double newWeight =
+              responseConnections[connectionIndex].weight + weightUpdate;
 
           setState(() {
             responseConnections[connectionIndex] = Connection(
@@ -408,14 +544,28 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: conn.width,
                 weight: newWeight,
                 showWeight: true,
-                color: newWeight > 0
-                    ? AppColors.green
-                    : newWeight < -5
-                        ? AppColors.red
-                        : Colors.white);
+                color: newWeight > 0 ? AppColors.green : AppColors.red);
           });
         }
       }
+    }
+
+    // Adjust association layer weights similarly
+    for (var conn in associationConnections) {
+      final sourceIndices = conn.sourceId.split('-');
+      final targetIndices = conn.targetId.split('-');
+      final sourceRow = int.parse(sourceIndices[0]);
+      final sourceCol = int.parse(sourceIndices[1]);
+      final targetRow = int.parse(targetIndices[0]);
+
+      double input = sensory[sourceRow][sourceCol];
+      double output = association[targetRow][0];
+      double delta = output * (1 - output); // Derivative of sigmoid
+      double weightUpdate = learningRate * delta * input;
+
+      setState(() {
+        conn.weight += weightUpdate;
+      });
     }
   }
 
@@ -448,13 +598,46 @@ class _HomeScreenState extends State<HomeScreen> {
     print('Thresholded outputs: $thresholdedResponse');
   }
 
+  Future<void> trainNetwork(int epochs) async {
+    for (int epoch = 0; epoch < epochs; epoch++) {
+      currentStatus = 'Training epoch ${epoch + 1}/$epochs';
+      await trainOneEpoch();
+      // Allow UI to update between epochs
+      await Future.delayed(const Duration(milliseconds: 10));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.background,
         title: const Text("Rosenblatt's perceptron"),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(30),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: Text(
+              currentStatus,
+              style: const TextStyle(color: Colors.white70),
+            ),
+          ),
+        ),
         actions: [
+          if (isTraining)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(8.0),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+              ),
+            ),
           Center(
             child: Text(
               '${associationConnections.length + responseConnections.length} connections',
@@ -488,138 +671,203 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.play_arrow),
-            onPressed: () {
-              for (int i = 0; i < 5; i++) {
-                // print('Epoch ${i + 1}');
-                trainOneEpoch();
-              }
-            },
-            tooltip: 'Test network',
+            onPressed: isTraining
+                ? null
+                : () async {
+                    setState(() {
+                      isTraining = true;
+                      currentStatus = 'Starting training...';
+                    });
+
+                    try {
+                      await trainNetwork(15); // Train for 20 epochs
+                    } finally {
+                      setState(() {
+                        isTraining = false;
+                        currentStatus = 'Training completed';
+                      });
+                    }
+                  },
+            tooltip: 'Train network',
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          if (associationConnections.isNotEmpty)
-            Positioned.fill(
-              child: CustomPaint(
-                painter: NetworkPainter(connections: associationConnections),
-                size: Size(MediaQuery.of(context).size.width,
-                    MediaQuery.of(context).size.height),
+      body: SingleChildScrollView(
+        child: Stack(
+          children: [
+            if (associationConnections.isNotEmpty)
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: NetworkPainter(connections: associationConnections),
+                  size: Size(MediaQuery.of(context).size.width,
+                      MediaQuery.of(context).size.height),
+                ),
               ),
-            ),
-          if (responseConnections.isNotEmpty)
-            Positioned.fill(
-              child: CustomPaint(
-                painter: NetworkPainter(connections: responseConnections),
-                size: Size(MediaQuery.of(context).size.width,
-                    MediaQuery.of(context).size.height),
+            if (responseConnections.isNotEmpty)
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: NetworkPainter(connections: responseConnections),
+                  size: Size(MediaQuery.of(context).size.width,
+                      MediaQuery.of(context).size.height),
+                ),
               ),
-            ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  sensory.rows,
-                  (i) => Row(
-                    children: List.generate(
-                      sensory.cols,
-                      (j) {
-                        return Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Unit(
-                            onClick: () {
-                              setState(() {
-                                sensory[i][j] =
-                                    sensory.at(i, j) == 0.0 ? 1.0 : 0.0;
-                              });
-                            },
-                            connections: getConnectionsForUnitL1('$i-$j'),
-                            // onHover: (isHovered) {
-                            //   if (isHovered) {
-                            //     print("=========================");
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    sensory.rows,
+                    (i) => Row(
+                      children: List.generate(
+                        sensory.cols,
+                        (j) {
+                          return Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Unit(
+                              onClick: () {
+                                setState(() {
+                                  sensory[i][j] =
+                                      sensory.at(i, j) == 0.0 ? 1.0 : 0.0;
+                                });
+                              },
+                              connections: getConnectionsForUnitL1('$i-$j'),
+                              // onHover: (isHovered) {
+                              //   if (isHovered) {
+                              //     print("=========================");
 
-                            //     print('Connections for unit $i-$j:');
-                            //     for (var conn
-                            //         in getConnectionsForUnitL1('$i-$j')) {
-                            //       print(conn.toString());
-                            //     }
-                            //     print("=========================");
-                            //   }
-                            // },
-                            key: sensoryKeys['$i-$j'],
-                            value: sensory.at(i, j).toDouble(),
-                          ),
-                        );
-                      },
+                              //     print('Connections for unit $i-$j:');
+                              //     for (var conn
+                              //         in getConnectionsForUnitL1('$i-$j')) {
+                              //       print(conn.toString());
+                              //     }
+                              //     print("=========================");
+                              //   }
+                              // },
+                              key: sensoryKeys['$i-$j'],
+                              value: sensory.at(i, j).toDouble(),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
-              ),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  association.rows,
-                  (i) => Row(
-                    children: List.generate(
-                      association.cols,
-                      (j) {
-                        return Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Unit(
-                            onClick: () {
-                              print('Clicked on unit $i-$j');
-                            },
-                            connections: getConnectionsForUnitL1('$i-$j'),
-                            // onHover: (isHovered) {
-                            //   if (isHovered) {
-                            //     print("=========================");
-                            //     print('Connections for unit $i-$j:');
-                            //     for (var conn
-                            //         in getConnectionsForUnitL1('$i-$j')) {
-                            //       print(conn.toString());
-                            //     }
-                            //     print("=========================");
-                            //   }
-                            // },
-                            key: associationKeys['$i-$j'],
-                            value: association.at(i, j).toDouble(),
-                          ),
-                        );
-                      },
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    association.rows,
+                    (i) => Row(
+                      children: List.generate(
+                        association.cols,
+                        (j) {
+                          return Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Unit(
+                              onClick: () {
+                                print('Clicked on unit $i-$j');
+                              },
+                              connections: getConnectionsForUnitL1('$i-$j'),
+                              // onHover: (isHovered) {
+                              //   if (isHovered) {
+                              //     print("=========================");
+                              //     print('Connections for unit $i-$j:');
+                              //     for (var conn
+                              //         in getConnectionsForUnitL1('$i-$j')) {
+                              //       print(conn.toString());
+                              //     }
+                              //     print("=========================");
+                              //   }
+                              // },
+                              key: associationKeys['$i-$j'],
+                              value: association.at(i, j).toDouble(),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
-              ),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  response.rows,
-                  (i) => Row(
-                    children: List.generate(
-                      response.cols,
-                      (j) {
-                        return Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Unit(
-                            onClick: () {
-                              print('Clicked on unit $i-$j');
-                            },
-                            connections: getConnectionsForUnitL1('$i-$j'),
-                            key: responseKeys['$i-$j'],
-                            value: response.at(i, j).toDouble(),
-                          ),
-                        );
-                      },
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    response.rows,
+                    (i) => Row(
+                      children: List.generate(
+                        response.cols,
+                        (j) {
+                          return Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Unit(
+                              onClick: () {
+                                print('Clicked on unit $i-$j');
+                              },
+                              connections: getConnectionsForUnitL1('$i-$j'),
+                              key: responseKeys['$i-$j'],
+                              value: response.at(i, j).toDouble(),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
+              ],
+            ),
+            Positioned(
+              right: 0,
+              top: 0,
+              child: Container(
+                width: MediaQuery.of(context).size.width / 4,
+                height: 200,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                ),
+                child: LineChart(
+                  LineChartData(
+                    gridData: FlGridData(show: true),
+                    titlesData: FlTitlesData(
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          interval: 20,
+                          reservedSize: 30,
+                        ),
+                      ),
+                      topTitles: AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      rightTitles: AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                    ),
+                    borderData: FlBorderData(show: true),
+                    minX: accuracyPoints.isEmpty ? 0 : accuracyPoints.first.x,
+                    maxX: accuracyPoints.isEmpty ? 0 : accuracyPoints.last.x,
+                    minY: 0,
+                    maxY: 100,
+                    lineBarsData: [
+                      LineChartBarData(
+                        spots: accuracyPoints,
+                        isCurved: true,
+                        color: Colors.blue,
+                        dotData: FlDotData(show: false),
+                        belowBarData: BarAreaData(
+                          show: true,
+                          color: Colors.blue.withOpacity(0.2),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ],
-          ),
-        ],
+            )
+          ],
+        ),
       ),
     );
   }
