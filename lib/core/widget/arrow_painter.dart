@@ -28,7 +28,7 @@ class ArrowPainter extends CustomPainter {
 
     if (showWeight ?? false) {
       final textSpan = TextSpan(
-        text: weight.toString(),
+        text: weight.toStringAsFixed(2),
         style: TextStyle(
           color: Colors.white,
           fontSize: 12,

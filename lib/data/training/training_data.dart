@@ -43,8 +43,8 @@ final List<TrainingPattern> trainingData = [
       [1, 1, 1, 1, 1],
       [1, 0, 0, 0, 1],
       [1, 0, 0, 0, 1],
-      [1, 0, 0, 0, 1],
       [1, 1, 1, 1, 1],
+      [1, 0, 0, 0, 1],
     ]),
     expectedOutput: NDArray.init([
       [0],

@@ -22,13 +22,46 @@ class _HomeScreenState extends State<HomeScreen> {
   final Map<String, GlobalKey> associationKeys = {};
   final Map<String, GlobalKey> responseKeys = {};
   bool isGeneratingConnections = false;
+  final double learningRate = 1;
+  int epoch = 0;
+  int currentEpochVariation = 0;
 
   var sensory = NDArray<double>.init([
-    [1.0, 0.0, 1.0, 0.0, 1.0],
-    [1.0, 0.0, 1.0, 0.0, 1.0],
-    [1.0, 0.0, 1.0, 0.0, 1.0],
-    [1.0, 0.0, 1.0, 0.0, 1.0],
-    [1.0, 0.0, 1.0, 0.0, 1.0],
+    [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+    ],
   ]);
 
   var association = NDArray<double>.init([
@@ -111,7 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final variations = <TrainingPattern>[];
 
     for (var pattern in trainingData) {
-      for (int i = 0; i < 5; i++) {
+      for (int i = 0; i < 20; i++) {
         variations.add(TrainingPattern(
           label: '${pattern.label}_variation_$i',
           input: addNoise(pattern.input, 0.1),
@@ -159,7 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 source: sourceCenter,
                 target: associationTargetCenter,
                 width: 1.5,
-                weight: weight,
+                weight: -5 + random.nextDouble(),
                 color: weight == 1 ? AppColors.green : AppColors.red));
           }
         }
@@ -209,7 +242,7 @@ class _HomeScreenState extends State<HomeScreen> {
               source: associationCenter,
               target: responseCenter,
               width: 1.5,
-              weight: random.nextInt(10),
+              weight: 0 + (random.nextDouble() * (10 - 0)),
               color: Colors.white,
               showWeight: true));
         }
@@ -234,7 +267,7 @@ class _HomeScreenState extends State<HomeScreen> {
               source: associationCenter,
               target: responseCenter,
               width: 1.5,
-              weight: random.nextInt(10),
+              weight: 0 + (random.nextDouble() * (10 - 0)),
               color: Colors.white,
               showWeight: true));
         }
@@ -281,7 +314,6 @@ class _HomeScreenState extends State<HomeScreen> {
       for (var conn in incomingConns) {
         final sourceIndices = conn.sourceId.split('-');
         final sourceRow = int.parse(sourceIndices[0]);
-
         sum += conn.weight * association.at(sourceRow, 0);
       }
 
@@ -296,6 +328,123 @@ class _HomeScreenState extends State<HomeScreen> {
     print('Testing pattern: ${pattern.label}');
     print('Expected output: ${pattern.expectedOutput}');
     print('Actual output: $response');
+  }
+
+  void trainOneEpoch() {
+    int correct = 0;
+    int total = 0;
+    print("\n=== Starting New Epoch ===");
+    print("Training data size: ${trainingData.length}");
+    for (var pattern in trainingData) {
+      setState(() {
+        sensory = pattern.input;
+      });
+      total++;
+      forwardPass(pattern.input);
+
+      // Check if prediction is correct using threshold
+      bool isCorrect = true;
+      for (int i = 0; i < response.rows; i++) {
+        double predicted = response[i][0] > 0.5 ? 1.0 : 0.0;
+        double expected = pattern.expectedOutput[i][0];
+
+        if ((predicted > 0.5 && expected < 0.5) ||
+            (predicted < 0.5 && expected > 0.5)) {
+          isCorrect = false;
+          print(
+              "Incorrect prediction at output $i: predicted=$predicted, expected=$expected");
+          break;
+        }
+      }
+
+      if (isCorrect) correct++;
+
+      print('Training pattern: ${pattern.label}');
+      print('Expected: ${pattern.expectedOutput}');
+      print('Actual (raw): $response');
+      List<double> thresholdedResponse = [];
+      for (int i = 0; i < response.rows; i++) {
+        thresholdedResponse.add(response[i][0] > 0.5 ? 1.0 : 0.0);
+      }
+      print('Actual (thresholded): $thresholdedResponse');
+
+      adjustWeights(pattern);
+    }
+
+    print('Epoch accuracy: ${(correct / total * 100).toStringAsFixed(2)}%');
+  }
+
+  void adjustWeights(TrainingPattern pattern) {
+    forwardPass(pattern.input);
+    print("\n== Adjusting Weights ==");
+    print("Pattern: ${pattern.label}");
+    for (int i = 0; i < response.rows; i++) {
+      double actual = response[i][0];
+      double expected = pattern.expectedOutput[i][0];
+      double error = expected - actual; // Calculate error
+
+      final incomingConns = getIncomingConnectionsL2('$i-0');
+
+      for (var conn in incomingConns) {
+        final sourceIndices = conn.sourceId.split('-');
+        final sourceRow = int.parse(sourceIndices[0]);
+        final associationActivity = association[sourceRow][0];
+
+        int connectionIndex = responseConnections.indexWhere(
+            (c) => c.sourceId == conn.sourceId && c.targetId == conn.targetId);
+
+        if (connectionIndex != -1) {
+          // Use error directly in weight update
+          double newWeight = responseConnections[connectionIndex].weight +
+              (learningRate * error * associationActivity);
+
+          setState(() {
+            responseConnections[connectionIndex] = Connection(
+                sourceId: conn.sourceId,
+                targetId: conn.targetId,
+                source: conn.source,
+                target: conn.target,
+                width: conn.width,
+                weight: newWeight,
+                showWeight: true,
+                color: newWeight > 0
+                    ? AppColors.green
+                    : newWeight < -5
+                        ? AppColors.red
+                        : Colors.white);
+          });
+        }
+      }
+    }
+  }
+
+  void predictPattern(NDArray<double> userInput) {
+    setState(() {
+      sensory = userInput;
+    });
+
+    forwardPass(userInput);
+
+    List<double> thresholdedResponse = [];
+    String prediction = "";
+
+    for (int i = 0; i < response.rows; i++) {
+      thresholdedResponse.add(response[i][0] > 0.5 ? 1.0 : 0.0);
+    }
+
+    if (thresholdedResponse[0] == 1) {
+      prediction = "Square";
+    } else if (thresholdedResponse[1] == 1) {
+      prediction = "Triangle";
+    } else if (thresholdedResponse[2] == 1) {
+      prediction = "Rectangle";
+    } else {
+      prediction = "Unknown Shape";
+    }
+
+    print('Network prediction: $prediction');
+    print('Raw outputs: $response');
+    print('Thresholded outputs: $thresholdedResponse');
   }
 
   @override
@@ -325,10 +474,23 @@ class _HomeScreenState extends State<HomeScreen> {
             tooltip: 'Regenerate connections',
           ),
           IconButton(
+            icon: const Icon(Icons.calculate),
+            onPressed: () {
+              setState(() {
+                isGeneratingConnections = false;
+              });
+              Future.delayed(const Duration(milliseconds: 200), () {
+                predictPattern(sensory);
+              });
+            },
+            tooltip: 'Regenerate connections',
+          ),
+          IconButton(
             icon: const Icon(Icons.play_arrow),
             onPressed: () {
-              if (trainingData.isNotEmpty) {
-                testPattern(trainingData[0]);
+              for (int i = 0; i < 20; i++) {
+                print('Epoch ${i + 1}');
+                trainOneEpoch();
               }
             },
             tooltip: 'Test network',
@@ -367,6 +529,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         return Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: Unit(
+                            onClick: () {
+                              setState(() {
+                                sensory[i][j] =
+                                    sensory.at(i, j) == 0.0 ? 1.0 : 0.0;
+                              });
+                            },
                             connections: getConnectionsForUnitL1('$i-$j'),
                             // onHover: (isHovered) {
                             //   if (isHovered) {
@@ -400,6 +568,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         return Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: Unit(
+                            onClick: () {
+                              print('Clicked on unit $i-$j');
+                            },
                             connections: getConnectionsForUnitL1('$i-$j'),
                             // onHover: (isHovered) {
                             //   if (isHovered) {
@@ -432,6 +603,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         return Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: Unit(
+                            onClick: () {
+                              print('Clicked on unit $i-$j');
+                            },
                             connections: getConnectionsForUnitL1('$i-$j'),
                             key: responseKeys['$i-$j'],
                             value: response.at(i, j).toDouble(),
@@ -493,7 +667,7 @@ class Connection {
   final Offset target;
   final Color color;
   final double width;
-  int weight;
+  double weight;
   final bool showWeight;
 
   Connection({
@@ -507,7 +681,7 @@ class Connection {
     this.showWeight = false,
   });
 
-  void updateWeight(int newWeight) {
+  void updateWeight(double newWeight) {
     weight = newWeight;
   }
 
