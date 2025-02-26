@@ -556,7 +556,6 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
-    // Adjust association layer weights similarly
     for (var conn in associationConnections) {
       final sourceIndices = conn.sourceId.split('-');
       final targetIndices = conn.targetId.split('-');
