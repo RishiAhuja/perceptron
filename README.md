@@ -2,12 +2,12 @@
 
 A visual implementation and simulation of Rosenblatt's Perceptron neural network model using Flutter. This project demonstrates how a simple neural network can be trained to recognize basic geometric shapes (squares, triangles, and rectangles).
 
-![Perceptron Network Visualization](https://example.com/path-to-your-screenshot.png)
+![Perceptron Network Visualization](assets/screenshots/1.png)
 
 ## Overview
 
 This implementation showcases a three-layer neural network:
-- **Input Layer (Sensory)**: A 5x5 grid of neurons representing the input shape pattern
+- **Input Layer (Sensory)**: A 10x10 grid of neurons representing the input shape pattern
 - **Hidden Layer (Association)**: 20 neurons that process the input information
 - **Output Layer (Response)**: 3 neurons representing the classification results (Square, Triangle, Rectangle)
 
@@ -131,7 +131,17 @@ All neural network logic is implemented from scratch without relying on machine 
 - **Test Recognition**: Click "Calculate" to test the current input pattern
 - **Create Custom Patterns**: Click on input layer neurons to toggle them on/off
 
-## Results and Performance
+## Results
+
+### Network Output Examples
+
+| Square Recognition | Triangle Recognition | Rectangle Recognition |
+|:-----------------:|:-------------------:|:--------------------:|
+| ![Square Output](assets/screenshots/2.png) | ![Triangle Output](assets/screenshots/4.png) | ![Rectangle Output](assets/screenshots/3.png) |
+
+*Images show the network's response to different input patterns after training*
+
+### Training Metrics
 
 The network typically achieves around 80% accuracy after 15 epochs of training. The accuracy plateau indicates that:
 
